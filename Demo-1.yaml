@@ -1,0 +1,51 @@
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: Our first template in CloudFormation course.
+Resources:
+  # creates an EC2 instance
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0ee679ef733e3b8e7
+      InstanceType: t2.micro
+      # # Attaches the "Web server security group" to the EC2 instance "Web server"
+      SecurityGroupIds:
+        - !Ref WebServerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Web server
+        - Key: Project
+          Value: CloudFormation Step By Step
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Use this for your user data (script from top to bottom)
+          # install httpd (Linux 2 version)
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+  # creates a security group to be atached to an EC2 instance
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for web servers
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: Web server security group
+  # Ordering physical resource creation using DependsOn
+  # DependsOn makes sure that the SQS is only  created after the "WebServerInstance" has been created
+
+  # SQSQueue:
+  #   Type: AWS::SQS::Queue
+  #   DependsOn: WebServerInstance

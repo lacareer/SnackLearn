@@ -1,0 +1,172 @@
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: Our first template in CloudFormation course.
+Resources:
+  # #1 Creates instances
+  WebServerInstance1:
+    DependsOn: CustomVpcSubnet
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0ee679ef733e3b8e7
+      InstanceType: t2.micro
+      # SubnetId: !Ref CustomVpcSubnet
+      # # Attaches the "Web server security group" to the EC2 instance "Web server"
+      SecurityGroupIds:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Demo-1 server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Use this for your user data (script from top to bottom)
+          # install httpd (Linux 2 version)
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+  WebServerInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0ee679ef733e3b8e7
+      InstanceType: t2.micro
+      # # Attaches the "Web server security group" to the EC2 instance "Web server"
+      SecurityGroupIds:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Demo-2 server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Use this for your user data (script from top to bottom)
+          # install httpd (Linux 2 version)
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+  WebServerInstance3:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0ee679ef733e3b8e7
+      InstanceType: t2.micro
+      # # Attaches the "Web server security group" to the EC2 instance "Web server"
+      SecurityGroupIds:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Demo-3 server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          # Use this for your user data (script from top to bottom)
+          # install httpd (Linux 2 version)
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+  # 2 creates a security group for ALB and EC2 instances
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ALB Security group for web servers
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ALB server security group
+  # 3 Target group
+  ALBTargetGroup:
+    DependsOn: CustomVpc
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 7
+      HealthyThresholdCount: 2
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref CustomVpc
+      TargetType: instance
+      Targets:
+        - Id: !Ref WebServerInstance1
+          Port: 80
+        # - Id: !Ref WebServerInstance2
+        #   Port: 80
+        # - Id: !Ref WebServerInstance3
+        #   Port: 80
+      VpcId: !Ref CustomVpc
+  # 4 creating a VPC
+  CustomVpc:
+    Type: AWS::EC2::VPC
+    Description: VPC FOR ALB and EC2 Instances
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: CustomVpc
+
+  CustomVpcSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref CustomVpc
+
+  CustomVpcRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CustomVpc
+
+  CustomVpcInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  CustomVpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CustomVpc
+      InternetGatewayId: !Ref CustomVpcInternetGateway
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - CustomVpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref CustomVpcRouteTable
+      GatewayId: !Ref CustomVpcInternetGateway
+      DestinationCidrBlock: 0.0.0.0/0
+
+  CustomVpcSubnetRouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref CustomVpcRouteTable
+      SubnetId: !Ref CustomVpcSubnet
+
+  # ALB:
+  #   Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  #   Property:
+  #     Subnets:
+  #       - !Ref CustomVpcSubnet
+  #     SecurityGroups:
+  #       - !Ref ALBSecurityGroup
+
+  # ActivitySecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Activity security group
+  #     VpcId: !Ref ActivityVpc
+  #     SecurityGroupIngress:
+  #       - CidrIp: 0.0.0.0/0
+  #         IpProtocol: icmp
+  #         FromPort: -1
+  #         ToPort: -1
